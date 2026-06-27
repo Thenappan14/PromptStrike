@@ -1,0 +1,31 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "nist-rmf-scanner"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Front-end (the /public directory) is served as static assets.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 — accounts, sessions, document metadata, scan history.
+# Replace database_id after you run: wrangler d1 create nist-rmf-scanner
+[[d1_databases]]
+binding = "DB"
+database_name = "nist-rmf-scanner"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# R2 — stores uploaded and generated document bodies.
+# Create with: wrangler r2 bucket create nist-rmf-documents
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "nist-rmf-documents"
+
+# Workers AI — runs the policy assessment and generation. No data leaves Cloudflare.
+[ai]
+binding = "AI"
+
+# Non-secret vars can go here. Secrets (admin credentials, SETUP_TOKEN) are set
+# with `wrangler secret put`, NOT in this file. See README.
+[vars]
+APP_NAME = "NIST AI RMF Policy Scanner"

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, CheckCircle2, Play, RefreshCw, BarChart2, ShieldAlert } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, Play, RefreshCw, BarChart2, ShieldAlert, Link2 } from 'lucide-react';
 
 interface SamplePreset {
   id: string;
   name: string;
   type: 'video' | 'audio' | 'image';
   fileName: string;
+  sourceUrl?: string;
   isFake: boolean;
   score: number;
   details: {
@@ -56,12 +57,63 @@ export const Sandbox: React.FC = () => {
   const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const [analysisLogs, setAnalysisLogs] = useState<string[]>([]);
   const [showReport, setShowReport] = useState<boolean>(false);
+  const [mediaUrl, setMediaUrl] = useState<string>('');
+  const [urlError, setUrlError] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
 
   // Drag and drop states
   const [dragActive, setDragActive] = useState(false);
+
+  const createMockSample = (
+    name: string,
+    type: 'video' | 'audio' | 'image',
+    sourceUrl?: string
+  ): SamplePreset => {
+    const fakeNamePattern = /(ai|fake|deepfake|synthetic|generated|cloned|altered|manipulated)/i;
+    const realNamePattern = /(real|authentic|original|genuine|verified)/i;
+    const isMockFake = fakeNamePattern.test(name)
+      ? true
+      : realNamePattern.test(name)
+        ? false
+        : Math.random() > 0.45;
+    const mockScore = isMockFake
+      ? parseFloat((80 + Math.random() * 19).toFixed(1))
+      : parseFloat((2 + Math.random() * 8).toFixed(1));
+
+    return {
+      id: sourceUrl ? 'linked-media' : 'custom',
+      name,
+      type,
+      fileName: name,
+      sourceUrl,
+      isFake: isMockFake,
+      score: mockScore,
+      details: {
+        facialSymmetry: isMockFake ? Math.floor(65 + Math.random() * 25) : Math.floor(5 + Math.random() * 15),
+        gazeCoherence: isMockFake ? Math.floor(70 + Math.random() * 25) : Math.floor(8 + Math.random() * 15),
+        spectralConsistency: isMockFake ? Math.floor(60 + Math.random() * 35) : Math.floor(10 + Math.random() * 12),
+        compressionNoise: isMockFake ? Math.floor(75 + Math.random() * 20) : Math.floor(8 + Math.random() * 15)
+      },
+      anomalies: isMockFake
+        ? sourceUrl
+          ? ['Linked video frame stream contains facial boundary artifacts', 'Metadata handoff is incomplete for remote platform media', 'Irregular speech-to-mouth alignment detected in sampled segments']
+          : ['Unnatural blending seams along facial boundaries', 'Mismatched audio-video frame syncing', 'Irregular frequency spikes in high frequency band']
+        : ['No synthetic fingerprints detected']
+    };
+  };
+
+  const selectLocalFile = (file: File) => {
+    const type = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image';
+    const nextPreviewUrl = URL.createObjectURL(file);
+
+    setPreviewUrl(nextPreviewUrl);
+    setSelectedSample(createMockSample(file.name, type as 'video' | 'audio' | 'image'));
+    setShowReport(false);
+    setUrlError('');
+  };
 
   // File analysis logs simulator
   const logSteps = [
@@ -74,6 +126,17 @@ export const Sandbox: React.FC = () => {
     'Computing GAN-fingerprint artifacts & camera sensor pattern noise...',
     'Generating final synthesis probability scoring...'
   ];
+
+  const getVerdictColor = (sample: SamplePreset) =>
+    sample.isFake ? 'var(--color-crimson)' : 'var(--color-emerald)';
+
+  const getVerdictConfidence = (sample: SamplePreset) =>
+    parseFloat((100 - sample.score).toFixed(1));
+
+  const getAuthenticityScore = (anomalyScore: number) => 100 - anomalyScore;
+
+  const getAuthenticityColor = (authenticityScore: number) =>
+    authenticityScore > 50 ? 'var(--color-emerald)' : 'var(--color-crimson)';
 
   // Drag and drop handlers
   const handleDrag = (e: React.DragEvent) => {
@@ -92,30 +155,33 @@ export const Sandbox: React.FC = () => {
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const type = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image';
-      // Generate a mock custom sample based on file type
-      const isMockFake = Math.random() > 0.4;
-      const mockScore = isMockFake ? parseFloat((80 + Math.random() * 19).toFixed(1)) : parseFloat((2 + Math.random() * 8).toFixed(1));
-      
-      setSelectedSample({
-        id: 'custom',
-        name: file.name,
-        type: type as 'video' | 'audio' | 'image',
-        fileName: file.name,
-        isFake: isMockFake,
-        score: mockScore,
-        details: {
-          facialSymmetry: isMockFake ? Math.floor(65 + Math.random() * 25) : Math.floor(5 + Math.random() * 15),
-          gazeCoherence: isMockFake ? Math.floor(70 + Math.random() * 25) : Math.floor(8 + Math.random() * 15),
-          spectralConsistency: isMockFake ? Math.floor(60 + Math.random() * 35) : Math.floor(10 + Math.random() * 12),
-          compressionNoise: isMockFake ? Math.floor(75 + Math.random() * 20) : Math.floor(8 + Math.random() * 15)
-        },
-        anomalies: isMockFake 
-          ? ['Unnatural blending seams along facial boundaries', 'Mismatched audio-video frame syncing', 'Irregular frequency spikes in high frequency band']
-          : ['No synthetic fingerprints detected']
-      });
+      selectLocalFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleUrlSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmedUrl = mediaUrl.trim();
+
+    try {
+      const parsedUrl = new URL(trimmedUrl);
+      const isSupportedProtocol = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+
+      if (!isSupportedProtocol) {
+        setUrlError('Please enter a valid http or https link.');
+        return;
+      }
+
+      const host = parsedUrl.hostname.replace(/^www\./, '');
+      const isYouTube = host === 'youtube.com' || host === 'youtu.be' || host.endsWith('.youtube.com');
+      const label = isYouTube ? 'YouTube Political Address Link' : `${host} Media Link`;
+
+      setPreviewUrl(null);
+      setSelectedSample(createMockSample(label, 'video', trimmedUrl));
       setShowReport(false);
+      setUrlError('');
+    } catch {
+      setUrlError('Please enter a valid media URL.');
     }
   };
 
@@ -127,6 +193,14 @@ export const Sandbox: React.FC = () => {
     setAnalysisProgress(0);
     setAnalysisLogs([]);
   };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   // Progress simulation effect
   useEffect(() => {
@@ -207,7 +281,7 @@ export const Sandbox: React.FC = () => {
 
       if (selectedSample?.type === 'audio') {
         // Draw audio wave
-        ctx.strokeStyle = isAnalyzing ? '#00f2fe' : '#3b82f6';
+        ctx.strokeStyle = isAnalyzing ? '#c1121f' : '#a61b26';
         ctx.lineWidth = 2;
         ctx.beginPath();
         const sliceWidth = width / 100;
@@ -228,7 +302,7 @@ export const Sandbox: React.FC = () => {
 
         // Draw frequency bars at the bottom
         if (isAnalyzing) {
-          ctx.fillStyle = 'rgba(0, 242, 254, 0.15)';
+          ctx.fillStyle = 'rgba(193, 18, 31, 0.15)';
           for (let i = 0; i < width; i += 8) {
             const barHeight = Math.random() * (height / 3);
             ctx.fillRect(i, height - barHeight, 6, barHeight);
@@ -245,7 +319,7 @@ export const Sandbox: React.FC = () => {
 
         // Draw lines connecting mesh points
         ctx.lineWidth = 1;
-        ctx.strokeStyle = isAnalyzing ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = isAnalyzing ? 'rgba(193, 18, 31, 0.28)' : 'rgba(255, 255, 255, 0.1)';
         
         for (let i = 0; i < points.length; i++) {
           for (let j = i + 1; j < points.length; j++) {
@@ -256,7 +330,7 @@ export const Sandbox: React.FC = () => {
               ctx.lineTo(points[j].x, points[j].y);
               ctx.strokeStyle = (points[i].isWarning && points[j].isWarning && isAnalyzing)
                 ? 'rgba(255, 8, 68, 0.35)' 
-                : isAnalyzing ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+                : isAnalyzing ? 'rgba(193, 18, 31, 0.24)' : 'rgba(255, 255, 255, 0.08)';
               ctx.stroke();
             }
           }
@@ -284,7 +358,7 @@ export const Sandbox: React.FC = () => {
           ctx.stroke();
           
           // Glow effect on scanner sweep
-          ctx.fillStyle = 'rgba(0, 242, 254, 0.06)';
+          ctx.fillStyle = 'rgba(193, 18, 31, 0.08)';
           ctx.fillRect(0, Math.max(0, sweepY - 30), width, Math.min(height - sweepY, 30));
         }
       }
@@ -303,8 +377,6 @@ export const Sandbox: React.FC = () => {
     <div className="dashboard-grid">
       {/* Media Input Pane */}
       <div>
-        <h2 className="mb-4">Media Analysis Sandbox</h2>
-        
         {/* Preset Selector */}
         <div className="glass-panel mb-6">
           <h3 className="mb-3" style={{ fontSize: '1.1rem' }}>Select Verification Sample</h3>
@@ -315,8 +387,10 @@ export const Sandbox: React.FC = () => {
                 className={`btn ${selectedSample?.id === preset.id ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ flex: 1, minWidth: '180px', padding: '0.6rem 1rem' }}
                 onClick={() => {
+                  setPreviewUrl(null);
                   setSelectedSample(preset);
                   setShowReport(false);
+                  setUrlError('');
                 }}
               >
                 <span>{preset.name}</span>
@@ -332,7 +406,7 @@ export const Sandbox: React.FC = () => {
             borderStyle: 'dashed', 
             borderWidth: '2px', 
             padding: '2.5rem 1.5rem', 
-            backgroundColor: dragActive ? 'rgba(0, 242, 254, 0.02)' : 'transparent',
+            backgroundColor: dragActive ? 'rgba(193, 18, 31, 0.04)' : 'transparent',
             cursor: 'pointer'
           }}
           onDragEnter={handleDrag}
@@ -340,87 +414,119 @@ export const Sandbox: React.FC = () => {
           onDragLeave={handleDrag}
           onDrop={handleDrop}
         >
-          <Upload size={40} className="text-gradient mb-3" style={{ opacity: 0.8 }} />
-          <h3 className="mb-1" style={{ fontSize: '1.15rem' }}>Drag & Drop Media File</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            Supports MP4, WAV, JPG, PNG up to 100MB
-          </p>
-          <label className="btn btn-secondary" style={{ display: 'inline-flex', padding: '0.5rem 1.25rem' }}>
-            <span>Browse Local Files</span>
-            <input 
-              type="file" 
-              style={{ display: 'none' }} 
-              accept="video/*,audio/*,image/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  const file = e.target.files[0];
-                  const type = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image';
-                  const isMockFake = Math.random() > 0.5;
-                  const mockScore = isMockFake ? parseFloat((82 + Math.random() * 17).toFixed(1)) : parseFloat((1 + Math.random() * 7).toFixed(1));
-                  setSelectedSample({
-                    id: 'custom',
-                    name: file.name,
-                    type: type as 'video' | 'audio' | 'image',
-                    fileName: file.name,
-                    isFake: isMockFake,
-                    score: mockScore,
-                    details: {
-                      facialSymmetry: isMockFake ? 85 : 8,
-                      gazeCoherence: isMockFake ? 76 : 12,
-                      spectralConsistency: isMockFake ? 89 : 5,
-                      compressionNoise: isMockFake ? 92 : 11
-                    },
-                    anomalies: isMockFake 
-                      ? ['Synthetic visual seams around boundaries', 'Irregular eye reflections', 'Distorted audio frequency phase']
-                      : ['No deepfake patterns recognized']
-                  });
-                  setShowReport(false);
-                }
-              }}
-            />
-          </label>
-        </div>
-
-        {/* Selected Media Panel / Active Scanner */}
-        {selectedSample && (
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div className="flex-between mb-3">
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Target: {selectedSample.fileName}
-              </span>
-              <span className={`badge ${selectedSample.type === 'video' ? 'badge-purple' : selectedSample.type === 'audio' ? 'badge-cyan' : 'badge-emerald'}`}>
-                {selectedSample.type.toUpperCase()}
-              </span>
+          {!selectedSample && (
+            <>
+              <Upload size={40} className="text-gradient mb-3" style={{ opacity: 0.8 }} />
+              <h3 className="mb-1" style={{ fontSize: '1.15rem' }}>Drag & Drop Media File</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                Supports MP4, WAV, JPG, PNG up to 100MB, or paste a public video link
+              </p>
+            </>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <label className="btn btn-secondary" style={{ display: 'inline-flex', padding: '0.5rem 1.25rem' }}>
+              <span>Browse Local Files</span>
+              <input
+                type="file"
+                style={{ display: 'none' }}
+                accept="video/*,audio/*,image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    selectLocalFile(e.target.files[0]);
+                  }
+                }}
+              />
+            </label>
+          </div>
+          <form onSubmit={handleUrlSubmit} style={{ maxWidth: '520px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+              <input
+                type="url"
+                value={mediaUrl}
+                onChange={(e) => {
+                  setMediaUrl(e.target.value);
+                  setUrlError('');
+                }}
+                placeholder="Paste YouTube or video link"
+                aria-label="Media URL"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: '0.9rem',
+                  padding: '0.65rem 0.85rem'
+                }}
+              />
+              <button type="submit" className="btn btn-secondary" style={{ padding: '0.65rem 1rem' }}>
+                <Link2 size={17} />
+                <span>Add Link</span>
+              </button>
             </div>
+            {urlError && (
+              <p style={{ color: 'var(--color-crimson)', fontSize: '0.78rem', marginTop: '0.5rem' }}>
+                {urlError}
+              </p>
+            )}
+          </form>
 
-            <div className="scanner-container" style={{ height: '240px', width: '100%', marginBottom: '1rem', backgroundColor: '#05060a' }}>
-              {selectedSample.type === 'image' && (
-                <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7, transition: 'opacity 0.3s' }}>
-                  {/* programmatic mock graphic representing executive */}
-                  <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'linear-gradient(135deg, #161926, #242838)', display: 'flex', alignItems: 'center', justifyItems: 'center', border: '1px solid var(--border-color)' }}>
-                    <FileText size={32} style={{ color: 'var(--color-cyan)', margin: 'auto' }} />
+          {selectedSample && (
+            <div style={{ marginTop: '1.25rem', textAlign: 'left' }}>
+              <div className="flex-between mb-3">
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Target: {selectedSample.fileName}
+                </span>
+                <span className={`badge ${selectedSample.type === 'video' ? 'badge-purple' : selectedSample.type === 'audio' ? 'badge-cyan' : 'badge-emerald'}`}>
+                  {selectedSample.type.toUpperCase()}
+                </span>
+              </div>
+              {selectedSample.sourceUrl && (
+                <a
+                  href={selectedSample.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'block', color: 'var(--color-cyan)', fontSize: '0.78rem', marginBottom: '0.75rem', wordBreak: 'break-all', textDecoration: 'none' }}
+                >
+                  {selectedSample.sourceUrl}
+                </a>
+              )}
+
+              <div className="scanner-container" style={{ height: '280px', width: '100%', marginBottom: '1rem', backgroundColor: '#160909' }}>
+                {selectedSample.type === 'image' && previewUrl && (
+                  <img
+                    src={previewUrl}
+                    alt={selectedSample.fileName}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: isAnalyzing ? 0.45 : 1, transition: 'opacity 0.3s' }}
+                  />
+                )}
+                {selectedSample.type === 'image' && !previewUrl && (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7, transition: 'opacity 0.3s' }}>
+                    <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'linear-gradient(135deg, #161926, #242838)', display: 'flex', alignItems: 'center', justifyItems: 'center', border: '1px solid var(--border-color)' }}>
+                      <FileText size={32} style={{ color: 'var(--color-cyan)', margin: 'auto' }} />
+                    </div>
                   </div>
-                </div>
-              )}
-              {selectedSample.type === 'video' && (
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7 }}>
-                  <Play size={40} style={{ color: 'var(--color-purple)' }} />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Senate Address Frame Stream</span>
-                </div>
-              )}
-              {selectedSample.type === 'audio' && (
-                <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7 }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Audio Spectral Wave</span>
-                </div>
-              )}
-              
-              <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
-            </div>
+                )}
+                {selectedSample.type === 'video' && (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7 }}>
+                    <Play size={40} style={{ color: 'var(--color-purple)' }} />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Senate Address Frame Stream</span>
+                  </div>
+                )}
+                {selectedSample.type === 'audio' && (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: isAnalyzing ? 0.35 : 0.7 }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Audio Spectral Wave</span>
+                  </div>
+                )}
 
-            <div className="flex-center">
-              <button 
+                <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
+              </div>
+
+              <button
                 id="btn-run-analysis"
-                className="btn btn-primary w-full" 
+                className="btn btn-primary w-full"
                 onClick={runAnalysis}
                 disabled={isAnalyzing}
               >
@@ -436,66 +542,82 @@ export const Sandbox: React.FC = () => {
                   </>
                 )}
               </button>
-            </div>
 
-            {/* Live Progress Logs */}
-            {isAnalyzing && (
-              <div style={{ marginTop: '1rem', background: '#05060a', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#00f2fe', maxHeight: '100px', overflowY: 'auto' }}>
-                {analysisLogs.map((log, index) => (
-                  <div key={index} style={{ marginBottom: '4px' }}>
-                    &gt; {log}
+              {isAnalyzing && (
+                <>
+                  <div className="progress-bar-bg" style={{ marginTop: '1rem' }}>
+                    <div className="progress-bar-fill" style={{ width: `${analysisProgress}%` }} />
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ marginTop: '1rem', background: '#160909', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#ff4d5b', maxHeight: '100px', overflowY: 'auto' }}>
+                    {analysisLogs.map((log, index) => (
+                      <div key={index} style={{ marginBottom: '4px' }}>
+                        &gt; {log}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           </div>
-        )}
       </div>
 
       {/* Forensic Report Side-Panel */}
       <div>
         <h2 className="mb-4">Forensic Analysis Report</h2>
         {showReport && selectedSample ? (
-          <div className="glass-panel glass-panel-glow" style={{ borderLeftWidth: '4px', borderLeftColor: selectedSample.isFake ? 'var(--color-crimson)' : 'var(--color-emerald)' }}>
+          <div className="glass-panel glass-panel-glow" style={{ borderLeftWidth: '4px', borderLeftColor: getVerdictColor(selectedSample) }}>
             <div className="flex-between mb-4">
-              <span style={{ fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: selectedSample.isFake ? 'var(--color-crimson)' : 'var(--color-emerald)' }}>
-                {selectedSample.isFake ? 'Synthetic Content Detected' : 'Authentic Media Verified'}
+              <span style={{ fontWeight: 900, fontSize: '2rem', textTransform: 'uppercase', letterSpacing: '0.02em', color: getVerdictColor(selectedSample), lineHeight: 1.05 }}>
+                {selectedSample.isFake ? 'This is AI Generated' : 'This is Legit'}
               </span>
-              {selectedSample.isFake ? <ShieldAlert size={20} style={{ color: 'var(--color-crimson)' }} /> : <CheckCircle2 size={20} style={{ color: 'var(--color-emerald)' }} />}
+              {selectedSample.isFake ? <ShieldAlert size={34} style={{ color: getVerdictColor(selectedSample), flexShrink: 0 }} /> : <CheckCircle2 size={34} style={{ color: getVerdictColor(selectedSample), flexShrink: 0 }} />}
             </div>
 
             {/* Score gauge */}
             <div className="text-center mb-6" style={{ padding: '1.5rem 0', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, lineHeight: 1, color: selectedSample.isFake ? 'var(--color-crimson)' : 'var(--color-emerald)' }}>
-                {selectedSample.score}%
+              <div style={{ fontSize: '3rem', fontWeight: 800, lineHeight: 1, color: getVerdictColor(selectedSample) }}>
+                {getVerdictConfidence(selectedSample)}%
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '0.25rem', fontWeight: 600 }}>
-                Synthetic Probability Index
+                Authenticity Score
               </div>
             </div>
 
             {/* Parameters confidence bar */}
-            <h4 className="mb-3" style={{ fontSize: '0.9rem' }}>Forensic Detail Vectors</h4>
+            <h4 className="mb-3" style={{ fontSize: '0.9rem' }}>Authenticity Detail Vectors</h4>
             
             {selectedSample.type !== 'audio' && (
               <>
                 <div className="mb-3">
                   <div className="flex-between mb-1" style={{ fontSize: '0.8rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Facial Boundary Coherence</span>
-                    <span style={{ fontWeight: 600 }}>{selectedSample.details.facialSymmetry}%</span>
+                    <span style={{ fontWeight: 600 }}>{getAuthenticityScore(selectedSample.details.facialSymmetry)}%</span>
                   </div>
                   <div className="progress-bar-bg">
-                    <div className="progress-bar-fill" style={{ width: `${selectedSample.details.facialSymmetry}%`, background: selectedSample.details.facialSymmetry > 50 ? 'var(--color-crimson)' : 'var(--color-emerald)' }} />
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${getAuthenticityScore(selectedSample.details.facialSymmetry)}%`,
+                        background: getAuthenticityColor(getAuthenticityScore(selectedSample.details.facialSymmetry))
+                      }}
+                    />
                   </div>
                 </div>
 
                 <div className="mb-3">
                   <div className="flex-between mb-1" style={{ fontSize: '0.8rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Eye Gaze & reflection parity</span>
-                    <span style={{ fontWeight: 600 }}>{selectedSample.details.gazeCoherence}%</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Eye Gaze & Reflection Parity</span>
+                    <span style={{ fontWeight: 600 }}>{getAuthenticityScore(selectedSample.details.gazeCoherence)}%</span>
                   </div>
                   <div className="progress-bar-bg">
-                    <div className="progress-bar-fill" style={{ width: `${selectedSample.details.gazeCoherence}%`, background: selectedSample.details.gazeCoherence > 50 ? 'var(--color-crimson)' : 'var(--color-emerald)' }} />
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${getAuthenticityScore(selectedSample.details.gazeCoherence)}%`,
+                        background: getAuthenticityColor(getAuthenticityScore(selectedSample.details.gazeCoherence))
+                      }}
+                    />
                   </div>
                 </div>
               </>
@@ -503,21 +625,33 @@ export const Sandbox: React.FC = () => {
 
             <div className="mb-3">
               <div className="flex-between mb-1" style={{ fontSize: '0.8rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Spectral Harmonic anomalies</span>
-                <span style={{ fontWeight: 600 }}>{selectedSample.details.spectralConsistency}%</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Spectral Harmonic Integrity</span>
+                <span style={{ fontWeight: 600 }}>{getAuthenticityScore(selectedSample.details.spectralConsistency)}%</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill" style={{ width: `${selectedSample.details.spectralConsistency}%`, background: selectedSample.details.spectralConsistency > 50 ? 'var(--color-crimson)' : 'var(--color-emerald)' }} />
+                <div
+                  className="progress-bar-fill"
+                  style={{
+                    width: `${getAuthenticityScore(selectedSample.details.spectralConsistency)}%`,
+                    background: getAuthenticityColor(getAuthenticityScore(selectedSample.details.spectralConsistency))
+                  }}
+                />
               </div>
             </div>
 
             <div className="mb-4">
               <div className="flex-between mb-1" style={{ fontSize: '0.8rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Camera Sensor Pattern Mismatch</span>
-                <span style={{ fontWeight: 600 }}>{selectedSample.details.compressionNoise}%</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Camera Sensor Pattern Match</span>
+                <span style={{ fontWeight: 600 }}>{getAuthenticityScore(selectedSample.details.compressionNoise)}%</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill" style={{ width: `${selectedSample.details.compressionNoise}%`, background: selectedSample.details.compressionNoise > 50 ? 'var(--color-crimson)' : 'var(--color-emerald)' }} />
+                <div
+                  className="progress-bar-fill"
+                  style={{
+                    width: `${getAuthenticityScore(selectedSample.details.compressionNoise)}%`,
+                    background: getAuthenticityColor(getAuthenticityScore(selectedSample.details.compressionNoise))
+                  }}
+                />
               </div>
             </div>
 

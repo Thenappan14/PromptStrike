@@ -88,7 +88,7 @@ export const Showcase: React.FC = () => {
   // `isFake` modifies paths to introduce distortions
   const renderFaceSVG = (isFake: boolean) => {
     const strokeColor = isFake ? 'var(--color-crimson)' : 'var(--color-cyan)';
-    const glowColor = isFake ? 'rgba(255, 8, 68, 0.4)' : 'rgba(0, 242, 254, 0.3)';
+    const glowColor = isFake ? 'rgba(193, 18, 31, 0.45)' : 'rgba(193, 18, 31, 0.28)';
     
     return (
       <svg viewBox="0 0 400 400" style={{ width: '100%', height: '100%', display: 'block', background: '#090a10' }}>
@@ -181,7 +181,7 @@ export const Showcase: React.FC = () => {
         />
 
         {/* Face Landmark Mesh Overlay (High-tech scanner lines) */}
-        <g stroke={isFake ? "rgba(255,8,68,0.15)" : "rgba(0,242,254,0.12)"} strokeWidth="0.8">
+        <g stroke={isFake ? "rgba(193,18,31,0.2)" : "rgba(193,18,31,0.12)"} strokeWidth="0.8">
           <line x1="200" y1="90" x2="170" y2="170" />
           <line x1="200" y1="90" x2="230" y2="170" />
           <line x1="170" y1="170" x2="200" y2="230" />
@@ -281,7 +281,7 @@ export const Showcase: React.FC = () => {
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    background: isRightSide ? 'rgba(255, 8, 68, 0.2)' : 'rgba(0, 242, 254, 0.2)',
+                    background: isRightSide ? 'rgba(193, 18, 31, 0.24)' : 'rgba(193, 18, 31, 0.16)',
                     border: `2px solid ${isRightSide ? 'var(--color-crimson)' : 'var(--color-cyan)'}`,
                     display: 'flex',
                     alignItems: 'center',

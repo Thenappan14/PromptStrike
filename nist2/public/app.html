@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Workspace — NIST AI RMF Policy Scanner</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="app">
+  <div class="brand">NIST AI RMF Policy Scanner <small id="who"></small></div>
+  <div class="row" id="nav"></div>
+</header>
+
+<div class="container">
+  <!-- Upload -->
+  <div class="card">
+    <h2>1 · Upload your policy</h2>
+    <p class="muted">Accepted: .pdf, .docx, .txt. Text is extracted in your browser, then stored privately to your account.</p>
+    <input type="file" id="file" accept=".pdf,.docx,.txt" />
+    <div class="row" style="margin-top:12px">
+      <button id="upload">Upload & store</button>
+      <span class="spacer"></span>
+      <small class="hint">or paste text directly when scanning below</small>
+    </div>
+    <div id="uploadMsg"></div>
+    <h3>Your documents</h3>
+    <table id="docs"><tbody></tbody></table>
+  </div>
+
+  <!-- Scan -->
+  <div class="card">
+    <h2>2 · Scan against NIST AI RMF</h2>
+    <p class="muted">Assess robustness across all 72 subcategories. Runs on Cloudflare Workers AI — your content stays in Cloudflare.</p>
+    <label for="paste">Policy text (optional — leave blank to use a selected document)</label>
+    <textarea id="paste" placeholder="Paste policy text here, or select an uploaded document from the table above…"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="scan">Run robustness scan</button>
+      <small class="hint" id="selDoc"></small>
+    </div>
+    <div id="scanMsg"></div>
+    <div id="scanResult"></div>
+  </div>
+
+  <!-- Generate -->
+  <div class="card">
+    <h2>3 · Generate an enhanced policy</h2>
+    <p class="muted">Maps your content into the NIST structure. Unsupplied facts become clearly marked placeholders — nothing is invented.</p>
+    <div class="row">
+      <div style="flex:1; min-width:200px">
+        <label for="org">Organization name</label>
+        <input id="org" placeholder="[leave blank to keep as placeholder]" />
+      </div>
+      <div style="flex:1; min-width:200px">
+        <label for="owner">Accountable executive / AI risk owner</label>
+        <input id="owner" placeholder="[leave blank to keep as placeholder]" />
+      </div>
+    </div>
+    <div class="row">
+      <div style="flex:1; min-width:200px">
+        <label for="ver">Version</label>
+        <input id="ver" placeholder="e.g. 1.0" />
+      </div>
+      <div style="flex:1; min-width:200px">
+        <label for="date">Effective date</label>
+        <input id="date" placeholder="e.g. 2026-07-01" />
+      </div>
+    </div>
+    <div style="height:12px"></div>
+    <button id="generate">Generate enhanced policy</button>
+    <div id="genMsg"></div>
+    <div id="genActions" style="display:none; margin-top:12px" class="row">
+      <button id="dlDocx">Download .docx</button>
+      <button class="ghost" id="dlMd">Download .md</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { api, whoami, showMsg, clearMsg, escapeHtml, extractText, downloadDocx, downloadMarkdown } from "/client.js";
+
+const me = await whoami();
+if (!me.authenticated) { location.href = "/login.html?next=/app.html"; }
+document.getElementById("who").textContent = "· " + me.username;
+document.getElementById("nav").innerHTML =
+  (me.role === "admin" ? `<a href="/admin.html"><button class="ghost">Admin</button></a>` : "") +
+  `<button class="ghost" id="logout">Sign out</button>`;
+document.getElementById("logout").onclick = async () => {
+  await api("/api/logout", { method: "POST" }); location.href = "/";
+};
+
+let selectedDocId = null;
+let lastMarkdown = "";
+
+async function refreshDocs() {
+  const { documents } = await api("/api/documents");
+  const tb = document.querySelector("#docs tbody");
+  if (!documents.length) { tb.innerHTML = `<tr><td class="muted">No documents yet.</td></tr>`; return; }
+  tb.innerHTML = documents.map((d) => `
+    <tr>
+      <td><a href="#" data-pick="${d.id}">${escapeHtml(d.filename)}</a> <span class="pill ${d.kind==='generated'?'admin':'user'}">${d.kind}</span></td>
+      <td class="muted">${new Date(d.created_at*1000).toLocaleString()}</td>
+      <td><button class="ghost" data-del="${d.id}">Delete</button></td>
+    </tr>`).join("");
+  tb.querySelectorAll("[data-pick]").forEach((a) => a.onclick = (e) => {
+    e.preventDefault(); selectedDocId = Number(a.dataset.pick);
+    document.getElementById("selDoc").textContent = "Selected document #" + selectedDocId + " (clears if you paste text)";
+  });
+  tb.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
+    await api("/api/documents/" + b.dataset.del, { method: "DELETE" });
+    if (selectedDocId === Number(b.dataset.del)) selectedDocId = null;
+    refreshDocs();
+  });
+}
+
+document.getElementById("upload").onclick = async () => {
+  const msg = document.getElementById("uploadMsg"); clearMsg(msg);
+  const f = document.getElementById("file").files[0];
+  if (!f) return showMsg(msg, "Choose a file first.");
+  try {
+    showMsg(msg, "Extracting text…", "ok");
+    const text = await extractText(f);
+    if (!text.trim()) throw new Error("No extractable text found in that file.");
+    await api("/api/documents", { method: "POST", body: { filename: f.name, text, kind: "upload" } });
+    showMsg(msg, "Uploaded and stored privately.", "ok");
+    refreshDocs();
+  } catch (e) { showMsg(msg, e.message); }
+};
+
+document.getElementById("paste").addEventListener("input", () => {
+  if (document.getElementById("paste").value.trim()) {
+    selectedDocId = null; document.getElementById("selDoc").textContent = "Using pasted text";
+  }
+});
+
+document.getElementById("scan").onclick = async () => {
+  const msg = document.getElementById("scanMsg"); clearMsg(msg);
+  const text = document.getElementById("paste").value.trim();
+  if (!text && !selectedDocId) return showMsg(msg, "Paste policy text or pick an uploaded document.");
+  const btn = document.getElementById("scan"); btn.disabled = true;
+  showMsg(msg, "Scanning across Govern, Map, Measure, Manage… this runs four passes and may take ~30–60s.", "ok");
+  try {
+    const r = await api("/api/scan", { method: "POST", body: text ? { text } : { documentId: selectedDocId } });
+    clearMsg(msg);
+    renderScan(r);
+  } catch (e) { showMsg(msg, e.message); }
+  finally { btn.disabled = false; }
+};
+
+function renderScan({ summary, results }) {
+  const el = document.getElementById("scanResult");
+  let html = `<hr>
+    <div class="scoreband">
+      <div><div class="score">${summary.robustnessScore}%</div><div class="stat">robustness score</div></div>
+      <div class="stat"><b>${summary.covered}</b><br>covered</div>
+      <div class="stat"><b>${summary.partial}</b><br>partial</div>
+      <div class="stat"><b>${summary.missing}</b><br>missing</div>
+      <div class="stat"><b>${summary.total}</b><br>subcategories</div>
+    </div>`;
+  for (const r of results) {
+    html += `<h3>${r.function}</h3>`;
+    if (r.error) { html += `<p class="muted">${escapeHtml(r.error)}</p>`; continue; }
+    for (const it of r.items) {
+      html += `<div class="finding">
+        <span class="id">${escapeHtml(it.id || "")}</span>
+        <span class="pill ${it.status}">${it.status}</span>
+        <div>${escapeHtml(it.finding || "")}</div>
+        ${it.improvement ? `<div class="improve">→ ${escapeHtml(it.improvement)}</div>` : ""}
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+document.getElementById("generate").onclick = async () => {
+  const msg = document.getElementById("genMsg"); clearMsg(msg);
+  const text = document.getElementById("paste").value.trim();
+  if (!text && !selectedDocId) return showMsg(msg, "Paste text or pick a document to base the policy on.");
+  const orgFields = {
+    "Organization name": document.getElementById("org").value.trim(),
+    "Accountable Executive / AI Risk Owner": document.getElementById("owner").value.trim(),
+    "Version": document.getElementById("ver").value.trim(),
+    "Effective date": document.getElementById("date").value.trim(),
+  };
+  const btn = document.getElementById("generate"); btn.disabled = true;
+  showMsg(msg, "Generating an enhanced, NIST-aligned policy… this may take ~30–60s.", "ok");
+  try {
+    const body = text ? { text, orgFields } : { documentId: selectedDocId, orgFields };
+    const r = await api("/api/generate", { method: "POST", body });
+    lastMarkdown = r.markdown;
+    showMsg(msg, "Policy generated and saved to your documents.", "ok");
+    document.getElementById("genActions").style.display = "flex";
+  } catch (e) { showMsg(msg, e.message); }
+  finally { btn.disabled = false; }
+};
+document.getElementById("dlDocx").onclick = () => downloadDocx(lastMarkdown);
+document.getElementById("dlMd").onclick = () => downloadMarkdown(lastMarkdown);
+
+refreshDocs();
+</script>
+</body>
+</html>

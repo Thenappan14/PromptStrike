@@ -1,0 +1,16 @@
+{
+  "name": "nist-rmf-scanner",
+  "version": "1.0.0",
+  "description": "NIST AI RMF policy robustness scanner on Cloudflare Workers + D1 + R2 + Workers AI",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute nist-rmf-scanner --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute nist-rmf-scanner --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

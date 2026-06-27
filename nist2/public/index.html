@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NIST AI RMF Policy Scanner</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="app">
+  <div class="brand">NIST AI RMF Policy Scanner <small>robustness check & improvement</small></div>
+  <div class="row" id="nav"></div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h1>👋 Welcome</h1>
+    <p>This tool checks how robustly an AI governance policy aligns to the
+       <b>NIST AI Risk Management Framework</b> (Govern, Map, Measure, Manage)
+       across all 72 subcategories, then suggests concrete improvements.</p>
+    <p class="muted">Start with your AI risk scan. When it's done, come back here to enhance your policy.</p>
+    <div class="row">
+      <a href="https://claude.ai/share/5831253b-4e2d-4077-aaa9-40e2f5f23aa4" target="_blank" rel="noopener">
+        <button class="ghost">Open the risk scan tool ↗</button>
+      </a>
+      <button id="finishedScan">I've finished my scan</button>
+    </div>
+  </div>
+
+  <div class="card" id="enhanceCard" style="display:none">
+    <h2>Would you like to enhance your policy?</h2>
+    <p class="muted">If yes, you'll sign in, upload your policy documents, and get a tailored,
+       NIST-aligned policy plus a robustness assessment.</p>
+    <div class="row">
+      <button id="enhanceYes">Yes, enhance my policy</button>
+      <button class="ghost" id="enhanceNo">Not now</button>
+    </div>
+    <div id="enhanceMsg"></div>
+  </div>
+</div>
+
+<script type="module">
+import { whoami } from "/client.js";
+
+const nav = document.getElementById("nav");
+const me = await whoami();
+if (me.authenticated) {
+  nav.innerHTML = `<a href="/app.html"><button class="ghost">My workspace</button></a>` +
+    (me.role === "admin" ? `<a href="/admin.html"><button class="ghost">Admin</button></a>` : "");
+} else {
+  nav.innerHTML = `<a href="/login.html"><button class="ghost">Sign in</button></a>`;
+}
+
+document.getElementById("finishedScan").onclick = () => {
+  document.getElementById("enhanceCard").style.display = "block";
+  document.getElementById("enhanceCard").scrollIntoView({ behavior: "smooth" });
+};
+document.getElementById("enhanceYes").onclick = () => {
+  location.href = me.authenticated ? "/app.html" : "/login.html?next=/app.html";
+};
+document.getElementById("enhanceNo").onclick = () => {
+  document.getElementById("enhanceMsg").innerHTML =
+    `<div class="msg ok">No problem. Your scan results stand on their own — come back anytime to enhance.</div>`;
+};
+</script>
+</body>
+</html>
