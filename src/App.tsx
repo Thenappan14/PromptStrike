@@ -8,8 +8,16 @@ import { NistScorer } from './components/NistScorer';
 import { ShieldAlert } from 'lucide-react';
 import './App.css';
 
+const embeddedTools: Record<string, { title: string; url: string }> = {
+  summarizer: {
+    title: 'Process Checks Summarizer',
+    url: 'https://ai-verify-process-checks-summary.pages.dev/',
+  },
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<string>('sandbox');
+  const embeddedTool = embeddedTools[activeTab];
 
   return (
     <div className="app-container">
@@ -47,6 +55,20 @@ function App() {
         {activeTab === 'quiz' && <Quiz />}
         {activeTab === 'guides' && <Guides />}
         {activeTab === 'nist' && <NistScorer />}
+        {embeddedTool && (
+          <section className="embedded-tool-section">
+            <div className="embedded-tool-header">
+              <h2>{embeddedTool.title}</h2>
+            </div>
+            <iframe
+              className="embedded-tool-frame"
+              src={embeddedTool.url}
+              title={embeddedTool.title}
+              loading="lazy"
+              allow="clipboard-read; clipboard-write; fullscreen"
+            />
+          </section>
+        )}
       </main>
 
       {/* Footer */}

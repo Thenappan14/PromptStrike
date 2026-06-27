@@ -33,6 +33,10 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
         title = 'NIST AI RMF Scorer | PromptStrike';
         metaDescription = 'Score documents against NIST AI Risk Management Framework controls.';
         break;
+      case 'summarizer':
+        title = 'Process Checks Summarizer | PromptStrike';
+        metaDescription = 'Summarize AI Verify process checks inside PromptStrike.';
+        break;
     }
 
     document.title = title;
@@ -107,16 +111,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             <ShieldCheck size={18} />
             <span>Security</span>
           </a>
-          <a
+          <button
             id="nav-btn-summarizer"
-            className="nav-link"
-            href="https://ai-verify-process-checks-summary.pages.dev/"
-            target="_blank"
-            rel="noreferrer"
+            className={`nav-link ${activeTab === 'summarizer' ? 'active' : ''}`}
+            onClick={() => setActiveTab('summarizer')}
           >
             <ClipboardList size={18} />
             <span>Summarizer</span>
-          </a>
+          </button>
         </div>
       </div>
     </nav>
