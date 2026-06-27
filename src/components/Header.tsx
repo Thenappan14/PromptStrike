@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Shield, HelpCircle, Compass, Gamepad2, BookOpen } from 'lucide-react';
+import { Shield, HelpCircle, Compass, Gamepad2, BookOpen, FileCheck2 } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -28,6 +28,10 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
       case 'guides':
         title = 'Knowledge Guides | Deepfake Sentinel';
         metaDescription = 'Checklists and manuals for identifying synthetic media.';
+        break;
+      case 'nist':
+        title = 'NIST AI RMF Scorer | Deepfake Sentinel';
+        metaDescription = 'Score documents against NIST AI Risk Management Framework controls.';
         break;
     }
 
@@ -87,6 +91,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           >
             <BookOpen size={18} />
             <span>Guides</span>
+          </button>
+          <button
+            id="nav-btn-nist"
+            className={`nav-link ${activeTab === 'nist' ? 'active' : ''}`}
+            onClick={() => setActiveTab('nist')}
+          >
+            <FileCheck2 size={18} />
+            <span>NIST RMF</span>
           </button>
         </div>
       </div>

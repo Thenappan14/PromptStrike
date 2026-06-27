@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NIST AI RMF Document Scorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #eceef1;
+    --card: #f7f8fa;
+    --ink: #161a21;
+    --ink-soft: #3a4250;
+    --muted: #6b7480;
+    --line: #d3d8de;
+    --signal: #137a5f;       /* instrument green: a matched control */
+    --signal-bg: #e2efe9;
+    --amber: #b4671f;        /* a missed control */
+    --amber-bg: #f4e9dc;
+    --readout: #f2f4f7;
+    --shadow: 0 1px 0 rgba(22,26,33,.04), 0 8px 30px -18px rgba(22,26,33,.45);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 22px 80px; }
+
+  /* ---- Masthead ---- */
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--signal); font-weight: 600; margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 4.5vw, 38px); line-height: 1.1; font-weight: 700;
+    letter-spacing: -.01em; margin: 0 0 12px;
+  }
+  .lede { color: var(--ink-soft); max-width: 60ch; margin: 0; font-size: 16px; }
+  .rule { height: 1px; background: var(--line); margin: 28px 0; border: 0; }
+
+  /* ---- Upload ---- */
+  .drop {
+    border: 1.5px dashed var(--line); border-radius: 12px;
+    background: var(--card); padding: 34px 24px; text-align: center;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--signal); background: var(--signal-bg); }
+  .drop:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+  .drop h2 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .drop p { margin: 0; color: var(--muted); font-size: 14px; }
+  .drop .types {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--ink-soft); margin-top: 10px; letter-spacing: .02em;
+  }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  .filelist { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+  .filelist li {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 12px; font-size: 14px;
+  }
+  .filelist .fx {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; color: var(--signal);
+    background: var(--signal-bg); padding: 3px 7px; border-radius: 5px; letter-spacing: .04em;
+  }
+  .filelist .fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filelist button {
+    border: 0; background: none; color: var(--muted); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 2px 6px;
+  }
+  .filelist button:hover { color: var(--amber); }
+
+  .actions { display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+  .btn {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 15px; font-weight: 600;
+    background: var(--ink); color: #fff; border: 0; border-radius: 9px;
+    padding: 12px 22px; cursor: pointer; transition: transform .06s, opacity .15s;
+  }
+  .btn:hover { opacity: .92; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.ghost { background: none; color: var(--ink-soft); padding: 12px 10px; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  /* ---- Banner ---- */
+  .banner {
+    border-radius: 10px; padding: 13px 16px; font-size: 14px; margin-top: 18px;
+    border: 1px solid var(--amber); background: var(--amber-bg); color: #6a3a0e;
+  }
+
+  /* ---- Results ---- */
+  .results { margin-top: 8px; }
+  .overall {
+    background: var(--ink); color: var(--readout); border-radius: 14px;
+    padding: 24px 26px; display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; box-shadow: var(--shadow); flex-wrap: wrap;
+  }
+  .overall .label {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .16em;
+    text-transform: uppercase; color: #9aa6b4;
+  }
+  .overall .readout { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .overall .readout .big { font-size: clamp(40px, 9vw, 60px); letter-spacing: -.02em; }
+  .overall .readout .max { font-size: clamp(22px, 5vw, 30px); color: #8b97a6; }
+  .overall .pct { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: #9aa6b4; }
+
+  /* signature: the four-function meter stack */
+  .stack { margin-top: 14px; display: grid; gap: 12px; }
+  .meter {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .meter summary { list-style: none; cursor: pointer; }
+  .meter summary::-webkit-details-marker { display: none; }
+  .meter .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .meter .fn {
+    font-weight: 700; font-size: 16px; letter-spacing: .02em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .meter .fn .chev { color: var(--muted); font-size: 12px; transition: transform .15s; }
+  .meter[open] .fn .chev { transform: rotate(90deg); }
+  .meter .score { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 18px; }
+  .meter .score .max { color: var(--muted); }
+  .bar {
+    margin-top: 12px; height: 10px; border-radius: 6px;
+    background: var(--amber-bg); overflow: hidden; position: relative;
+  }
+  .bar > span {
+    display: block; height: 100%; background: var(--signal);
+    border-radius: 6px; transition: width .6s cubic-bezier(.2,.7,.2,1);
+  }
+  .detail { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .detail h4 {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--muted); margin: 0 0 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 4px 8px;
+    border-radius: 6px; border: 1px solid transparent;
+  }
+  .chip.hit { background: var(--signal-bg); color: var(--signal); border-color: #bfdfd3; }
+  .chip.miss { background: transparent; color: var(--muted); border-color: var(--line); }
+
+  /* ---- file report ---- */
+  .freport { margin-top: 22px; font-size: 13px; color: var(--ink-soft); }
+  .freport h3 {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--muted); margin: 0 0 8px;
+  }
+  .freport ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .freport li { display: flex; gap: 10px; align-items: baseline; }
+  .freport .dot { font-family: "IBM Plex Mono", monospace; }
+  .freport .dot.ok { color: var(--signal); }
+  .freport .dot.bad { color: var(--amber); }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; display: inline-block;
+    animation: spin .7s linear infinite; vertical-align: -3px; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .footnote { margin-top: 34px; font-size: 12.5px; color: var(--muted); }
+  .footnote a { color: var(--signal); }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 560px) {
+    .overall { flex-direction: column; align-items: flex-start; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="eyebrow">NIST AI RMF · Playbook controls</p>
+  <h1>Score documents against the AI Risk Management Framework</h1>
+  <p class="lede">
+    Upload your policies, assessments, or registers. Each NIST AI RMF subcategory
+    control your documents reference earns one point — counted once, never more.
+    You get a transparent breakdown across Govern, Map, Measure, and Manage.
+  </p>
+
+  <hr class="rule" />
+
+  <div id="drop" class="drop" tabindex="0" role="button"
+       aria-label="Upload documents. Click to choose files or drag them here.">
+    <h2>Drop files here, or click to choose</h2>
+    <p>One or more documents. They’re combined into a single corpus before scoring.</p>
+    <p class="types">.docx · .pdf · .xlsx — up to 25 MB each</p>
+  </div>
+  <input id="file" type="file" multiple accept=".docx,.pdf,.xlsx" />
+
+  <ul id="filelist" class="filelist" aria-live="polite"></ul>
+
+  <div class="actions">
+    <button id="score" class="btn" disabled>Score documents</button>
+    <button id="clear" class="btn ghost" hidden>Clear</button>
+    <span id="count" class="hint"></span>
+  </div>
+
+  <div id="error" class="banner" hidden></div>
+
+  <section id="results" class="results" aria-live="polite"></section>
+
+  <p class="footnote">
+    72 scorable controls — Govern (19), Map (18), Measure (22), Manage (13).
+    Function headers like “Govern” are category labels and are not scored.
+    See the full control set at <a href="/api/controls">/api/controls</a>.
+  </p>
+</main>
+
+<script>
+  const fileInput = document.getElementById("file");
+  const drop = document.getElementById("drop");
+  const list = document.getElementById("filelist");
+  const scoreBtn = document.getElementById("score");
+  const clearBtn = document.getElementById("clear");
+  const countEl = document.getElementById("count");
+  const errorEl = document.getElementById("error");
+  const resultsEl = document.getElementById("results");
+
+  const ALLOWED = ["docx", "pdf", "xlsx"];
+  let files = []; // selected File objects
+
+  const ext = (n) => (n.split(".").pop() || "").toLowerCase();
+
+  function render() {
+    list.innerHTML = "";
+    files.forEach((f, i) => {
+      const li = document.createElement("li");
+      const ok = ALLOWED.includes(ext(f.name));
+      li.innerHTML = `
+        <span class="fx" style="${ok ? "" : "color:var(--amber);background:var(--amber-bg)"}">${ext(f.name) || "?"}</span>
+        <span class="fname">${escapeHtml(f.name)}</span>
+        <span class="hint">${(f.size / 1024).toFixed(0)} KB</span>
+        <button aria-label="Remove ${escapeHtml(f.name)}" data-i="${i}">×</button>`;
+      list.appendChild(li);
+    });
+    const n = files.length;
+    countEl.textContent = n ? `${n} file${n > 1 ? "s" : ""} ready` : "";
+    scoreBtn.disabled = n === 0;
+    clearBtn.hidden = n === 0;
+  }
+
+  function addFiles(fileListLike) {
+    for (const f of fileListLike) {
+      if (!files.some((x) => x.name === f.name && x.size === f.size)) files.push(f);
+    }
+    render();
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  drop.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+
+  ["dragenter", "dragover"].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => { if (e.dataTransfer?.files) addFiles(e.dataTransfer.files); });
+
+  list.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-i]");
+    if (!b) return;
+    files.splice(Number(b.dataset.i), 1);
+    render();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    files = []; render(); resultsEl.innerHTML = ""; errorEl.hidden = true;
+  });
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  }
+
+  scoreBtn.addEventListener("click", async () => {
+    errorEl.hidden = true;
+    resultsEl.innerHTML = "";
+    scoreBtn.disabled = true;
+    scoreBtn.innerHTML = '<span class="spinner"></span>Scoring…';
+
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f, f.name));
+
+    let res;
+    try {
+      res = await fetch("/api/score", { method: "POST", body: fd });
+    } catch (err) {
+      // Only a genuine network-level failure lands here.
+      showError("Could not reach the scoring service — the request never completed. Check your connection and try again.");
+      scoreBtn.disabled = files.length === 0;
+      scoreBtn.textContent = "Score documents";
+      return;
+    }
+
+    // Parse the body as JSON, but fall back to text so server errors
+    // (e.g. a Cloudflare 500/404 HTML page) are reported, not masked.
+    const raw = await res.text();
+    let data = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* non-JSON body */ }
+
+    try {
+      if (data && res.ok) {
+        renderResults(data);
+      } else if (data && data.error) {
+        showError(data.error);
+        if (data.files) renderFileReport(data.files);
+      } else {
+        // Non-JSON or unexpected response — show status so the cause is visible.
+        const snippet = raw ? ` — ${raw.slice(0, 160).replace(/\s+/g, " ").trim()}` : "";
+        showError(
+          `The scoring service returned an unexpected response (HTTP ${res.status} ${res.statusText}).` +
+          (res.status === 404
+            ? " The /api/score function may not be deployed."
+            : res.status >= 500
+            ? " The function errored — check the Function logs and that the nodejs_compat flag is set."
+            : "") +
+          snippet
+        );
+      }
+    } finally {
+      scoreBtn.disabled = files.length === 0;
+      scoreBtn.textContent = "Score documents";
+    }
+  });
+
+  function renderResults(data) {
+    const { overall, functions } = data;
+    const pct = overall.max ? Math.round((overall.earned / overall.max) * 100) : 0;
+
+    const parts = [];
+    parts.push(`
+      <div class="overall">
+        <div>
+          <div class="label">Overall compliance coverage</div>
+          <div class="readout"><span class="big">${overall.earned}</span><span class="max"> / ${overall.max}</span></div>
+        </div>
+        <div class="pct">${pct}% of controls referenced</div>
+      </div>`);
+
+    parts.push('<div class="stack">');
+    for (const f of functions) {
+      const w = f.max ? (f.earned / f.max) * 100 : 0;
+      const hits = f.matched.map((id) => `<span class="chip hit">${id}</span>`).join("");
+      const misses = f.missed.map((id) => `<span class="chip miss">${id}</span>`).join("");
+      parts.push(`
+        <details class="meter">
+          <summary>
+            <div class="top">
+              <span class="fn"><span class="chev">▶</span>${f.name}</span>
+              <span class="score">${f.earned}<span class="max"> / ${f.max}</span></span>
+            </div>
+            <div class="bar"><span style="width:${w}%"></span></div>
+          </summary>
+          <div class="detail">
+            <h4>Matched (${f.matched.length})</h4>
+            <div class="chips">${hits || '<span class="hint">None referenced.</span>'}</div>
+            <h4>Not matched (${f.missed.length})</h4>
+            <div class="chips">${misses || '<span class="hint">All referenced.</span>'}</div>
+          </div>
+        </details>`);
+    }
+    parts.push("</div>");
+
+    resultsEl.innerHTML = parts.join("");
+    renderFileReport(data.files);
+  }
+
+  function renderFileReport(files) {
+    if (!files || !files.length) return;
+    const rows = files.map((f) => {
+      const ok = f.status === "ok";
+      const sym = ok ? "✓" : "!";
+      const note = ok
+        ? `${f.chars.toLocaleString()} characters extracted`
+        : (f.error || f.status);
+      return `<li><span class="dot ${ok ? "ok" : "bad"}">${sym}</span>
+        <span><strong>${escapeHtml(f.name)}</strong> — ${escapeHtml(note)}</span></li>`;
+    }).join("");
+    const div = document.createElement("div");
+    div.className = "freport";
+    div.innerHTML = `<h3>Files processed</h3><ul>${rows}</ul>`;
+    resultsEl.appendChild(div);
+  }
+
+  render();
+</script>
+</body>
+</html>

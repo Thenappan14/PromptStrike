@@ -4,6 +4,7 @@ import { Sandbox } from './components/Sandbox';
 import { Showcase } from './components/Showcase';
 import { Quiz } from './components/Quiz';
 import { Guides } from './components/Guides';
+import { NistScorer } from './components/NistScorer';
 import { ShieldAlert } from 'lucide-react';
 import './App.css';
 
@@ -45,6 +46,7 @@ function App() {
         {activeTab === 'showcase' && <Showcase />}
         {activeTab === 'quiz' && <Quiz />}
         {activeTab === 'guides' && <Guides />}
+        {activeTab === 'nist' && <NistScorer />}
       </main>
 
       {/* Footer */}

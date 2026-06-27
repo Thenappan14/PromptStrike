@@ -1,0 +1,20 @@
+{
+  "name": "nist-rmf-scorer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Pages + Functions app that scores uploaded documents against the NIST AI RMF Playbook controls.",
+  "scripts": {
+    "build:controls": "node scripts/build-controls.mjs",
+    "test": "node scripts/test-scoring.mjs",
+    "dev": "wrangler pages dev public --compatibility-flags=nodejs_compat",
+    "deploy": "wrangler pages deploy public"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "unpdf": "^0.12.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}
