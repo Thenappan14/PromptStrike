@@ -281,7 +281,7 @@ export const Sandbox: React.FC = () => {
 
       if (selectedSample?.type === 'audio') {
         // Draw audio wave
-        ctx.strokeStyle = isAnalyzing ? '#00f2fe' : '#3b82f6';
+        ctx.strokeStyle = isAnalyzing ? '#c1121f' : '#a61b26';
         ctx.lineWidth = 2;
         ctx.beginPath();
         const sliceWidth = width / 100;
@@ -302,7 +302,7 @@ export const Sandbox: React.FC = () => {
 
         // Draw frequency bars at the bottom
         if (isAnalyzing) {
-          ctx.fillStyle = 'rgba(0, 242, 254, 0.15)';
+          ctx.fillStyle = 'rgba(193, 18, 31, 0.15)';
           for (let i = 0; i < width; i += 8) {
             const barHeight = Math.random() * (height / 3);
             ctx.fillRect(i, height - barHeight, 6, barHeight);
@@ -319,7 +319,7 @@ export const Sandbox: React.FC = () => {
 
         // Draw lines connecting mesh points
         ctx.lineWidth = 1;
-        ctx.strokeStyle = isAnalyzing ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = isAnalyzing ? 'rgba(193, 18, 31, 0.28)' : 'rgba(255, 255, 255, 0.1)';
         
         for (let i = 0; i < points.length; i++) {
           for (let j = i + 1; j < points.length; j++) {
@@ -330,7 +330,7 @@ export const Sandbox: React.FC = () => {
               ctx.lineTo(points[j].x, points[j].y);
               ctx.strokeStyle = (points[i].isWarning && points[j].isWarning && isAnalyzing)
                 ? 'rgba(255, 8, 68, 0.35)' 
-                : isAnalyzing ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+                : isAnalyzing ? 'rgba(193, 18, 31, 0.24)' : 'rgba(255, 255, 255, 0.08)';
               ctx.stroke();
             }
           }
@@ -358,7 +358,7 @@ export const Sandbox: React.FC = () => {
           ctx.stroke();
           
           // Glow effect on scanner sweep
-          ctx.fillStyle = 'rgba(0, 242, 254, 0.06)';
+          ctx.fillStyle = 'rgba(193, 18, 31, 0.08)';
           ctx.fillRect(0, Math.max(0, sweepY - 30), width, Math.min(height - sweepY, 30));
         }
       }
@@ -377,8 +377,6 @@ export const Sandbox: React.FC = () => {
     <div className="dashboard-grid">
       {/* Media Input Pane */}
       <div>
-        <h2 className="mb-4">Media Analysis Sandbox</h2>
-        
         {/* Preset Selector */}
         <div className="glass-panel mb-6">
           <h3 className="mb-3" style={{ fontSize: '1.1rem' }}>Select Verification Sample</h3>
@@ -408,7 +406,7 @@ export const Sandbox: React.FC = () => {
             borderStyle: 'dashed', 
             borderWidth: '2px', 
             padding: '2.5rem 1.5rem', 
-            backgroundColor: dragActive ? 'rgba(0, 242, 254, 0.02)' : 'transparent',
+            backgroundColor: dragActive ? 'rgba(193, 18, 31, 0.04)' : 'transparent',
             cursor: 'pointer'
           }}
           onDragEnter={handleDrag}
@@ -496,7 +494,7 @@ export const Sandbox: React.FC = () => {
                 </a>
               )}
 
-              <div className="scanner-container" style={{ height: '280px', width: '100%', marginBottom: '1rem', backgroundColor: '#05060a' }}>
+              <div className="scanner-container" style={{ height: '280px', width: '100%', marginBottom: '1rem', backgroundColor: '#160909' }}>
                 {selectedSample.type === 'image' && previewUrl && (
                   <img
                     src={previewUrl}
@@ -550,7 +548,7 @@ export const Sandbox: React.FC = () => {
                   <div className="progress-bar-bg" style={{ marginTop: '1rem' }}>
                     <div className="progress-bar-fill" style={{ width: `${analysisProgress}%` }} />
                   </div>
-                  <div style={{ marginTop: '1rem', background: '#05060a', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#00f2fe', maxHeight: '100px', overflowY: 'auto' }}>
+                  <div style={{ marginTop: '1rem', background: '#160909', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#ff4d5b', maxHeight: '100px', overflowY: 'auto' }}>
                     {analysisLogs.map((log, index) => (
                       <div key={index} style={{ marginBottom: '4px' }}>
                         &gt; {log}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Shield, HelpCircle, Compass, Gamepad2, BookOpen, FileCheck2 } from 'lucide-react';
+import { HelpCircle, Compass, Gamepad2, BookOpen, FileCheck2 } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -9,28 +9,28 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   // Update document title for SEO on tab change
   useEffect(() => {
-    let title = 'Deepfake Sentinel - AI Verification Portal';
+    let title = 'PromptStrike - AI Verification Portal';
     let metaDescription = 'Detect synthetic media, compare AI deepfakes, and learn verification techniques.';
 
     switch (activeTab) {
       case 'sandbox':
-        title = 'Detection Sandbox | Deepfake Sentinel';
+        title = 'Analyser | PromptStrike';
         metaDescription = 'Analyze media for AI alterations with our synthetic scanner.';
         break;
       case 'showcase':
-        title = 'Visual Comparisons | Deepfake Sentinel';
+        title = 'Visual Comparisons | PromptStrike';
         metaDescription = 'Compare authentic and deepfaked media side-by-side.';
         break;
       case 'quiz':
-        title = 'Spot the Fake Quiz | Deepfake Sentinel';
+        title = 'Spot the Fake Quiz | PromptStrike';
         metaDescription = 'Test your ability to spot AI-generated faces and voices.';
         break;
       case 'guides':
-        title = 'Knowledge Guides | Deepfake Sentinel';
+        title = 'Knowledge Guides | PromptStrike';
         metaDescription = 'Checklists and manuals for identifying synthetic media.';
         break;
       case 'nist':
-        title = 'NIST AI RMF Scorer | Deepfake Sentinel';
+        title = 'NIST AI RMF Scorer | PromptStrike';
         metaDescription = 'Score documents against NIST AI Risk Management Framework controls.';
         break;
     }
@@ -53,10 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     <nav>
       <div className="nav-container">
         <div className="flex-center gap-2" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('sandbox')}>
-          <Shield size={26} className="text-gradient" style={{ color: 'var(--color-cyan)' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
-            DEEP<span className="text-gradient">SENTINEL</span>
-          </span>
+          <img src="/brand/logo.png" alt="PromptStrike" className="brand-logo" />
         </div>
 
         <div className="nav-links">
@@ -66,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             onClick={() => setActiveTab('sandbox')}
           >
             <Compass size={18} />
-            <span>Sandbox</span>
+            <span>Analyser</span>
           </button>
           <button
             id="nav-btn-showcase"
