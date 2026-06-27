@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HelpCircle, Compass, Gamepad2, BookOpen, FileCheck2 } from 'lucide-react';
+import { HelpCircle, Compass, Gamepad2, BookOpen, FileCheck2, ShieldCheck, ClipboardList } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -97,6 +97,26 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             <FileCheck2 size={18} />
             <span>NIST RMF</span>
           </button>
+          <a
+            id="nav-btn-security"
+            className="nav-link"
+            href="https://mcp-security-scanner.pages.dev/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ShieldCheck size={18} />
+            <span>Security</span>
+          </a>
+          <a
+            id="nav-btn-summarizer"
+            className="nav-link"
+            href="https://ai-verify-process-checks-summary.pages.dev/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ClipboardList size={18} />
+            <span>Summarizer</span>
+          </a>
         </div>
       </div>
     </nav>
