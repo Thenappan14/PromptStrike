@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Security Toolkit — Live Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav__inner">
+      <a href="#" class="brand"><span class="brand__mark">🛡️</span> MCP&nbsp;Security&nbsp;Scanner</a>
+      <span class="nav__tag">7 MCP servers · 1 orchestrator</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <p class="eyebrow">Model Context Protocol · Security</p>
+        <h1>Scan a URL with <span class="grad">7 MCP security servers</span></h1>
+        <p class="lede">Enter a target you are authorized to test. The scanner runs a non-destructive assessment — reputation, network exposure, TLS &amp; security headers — and maps every phase to its MCP server.</p>
+
+        <form id="scanForm" class="scanbox">
+          <div class="scanbox__row">
+            <input id="target" type="text" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+            <button id="scanBtn" type="submit" class="btn btn--primary">Run scan</button>
+          </div>
+          <details class="optadv">
+            <summary>Optional inputs — activate Snyk, Postman, WireMCP &amp; Container-MCP</summary>
+            <input id="repoPath" type="text" class="scanbox__optional" placeholder="Snyk — local repo/manifest path (e.g. /Users/you/project)" autocomplete="off" spellcheck="false" />
+            <input id="apiUrl" type="text" class="scanbox__optional" placeholder="Postman — API endpoint URL (e.g. https://api.example.com/v1/users)" autocomplete="off" spellcheck="false" />
+            <input id="pcapPath" type="text" class="scanbox__optional" placeholder="WireMCP — path to a .pcap capture" autocomplete="off" spellcheck="false" />
+            <input id="filePath" type="text" class="scanbox__optional" placeholder="Container-MCP — path to a file to inspect (static, never executed)" autocomplete="off" spellcheck="false" />
+          </details>
+          <label class="consent">
+            <input id="authorized" type="checkbox" />
+            <span>I am authorized to perform a non-destructive security assessment of this target.</span>
+          </label>
+          <p id="formError" class="form-error" hidden></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" id="resultsSection" hidden>
+      <div class="container">
+        <div id="summary" class="summary"></div>
+        <div id="phases" class="phasegrid"></div>
+        <details class="rawbox"><summary>Raw JSON</summary><pre id="rawJson" class="code"></pre></details>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="serversInfo">
+      <div class="container">
+        <h2 class="section__title">What each MCP does in a URL scan</h2>
+        <div class="grid">
+          <article class="card"><div class="card__icon">🧪</div><h3>VirusTotal MCP</h3><p>Domain reputation &amp; threat intel.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">🌐</div><h3>nmap MCP</h3><p>Open-port / service exposure.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">🐉</div><h3>Awesome Kali MCP</h3><p>TLS versions &amp; security headers.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">📦</div><h3>Snyk CLI MCP</h3><p>Dependency CVEs — add a repo path below.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">🔌</div><h3>Postman MCP</h3><p>API security tests — add an API URL.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">📡</div><h3>WireMCP</h3><p>Traffic analysis — add a .pcap path.</p><span class="pill pill--live">live</span></article>
+          <article class="card"><div class="card__icon">📥</div><h3>Container-MCP</h3><p>Static file inspection — add a file path.</p><span class="pill pill--live">live</span></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>🛡️ MCP Security Scanner</span>
+      <span>⚠️ Authorized testing only — stay within scope.</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
