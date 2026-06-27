@@ -1,0 +1,7 @@
+# wrangler.toml configuration for Cloudflare Pages deployment
+
+name = "deepfake-sentinel"
+pages_build_output_dir = "./dist"
+
+[vars]
+ENVIRONMENT = "production"
