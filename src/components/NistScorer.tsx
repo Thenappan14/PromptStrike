@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FileCheck2, FileUp, RefreshCw, Trash2 } from 'lucide-react';
+import { Download, FileCheck2, FileText, FileUp, RefreshCw, Trash2 } from 'lucide-react';
 
 interface FileResult {
   name: string;
@@ -28,6 +28,140 @@ interface ScoreResult {
 const ALLOWED_EXTENSIONS = ['docx', 'pdf', 'xlsx'];
 
 const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() || '';
+
+const coveragePercent = (earned: number, max: number) => max ? Math.round((earned / max) * 100) : 0;
+
+const generateMarkdownReport = (result: ScoreResult) => {
+  const overallPercent = coveragePercent(result.overall.earned, result.overall.max);
+  const sortedFunctions = [...result.functions].sort(
+    (a, b) => coveragePercent(a.earned, a.max) - coveragePercent(b.earned, b.max)
+  );
+  const weakest = sortedFunctions[0];
+  const strongest = sortedFunctions[sortedFunctions.length - 1];
+  const priorityGaps = result.functions.flatMap((fn) =>
+    fn.missed.slice(0, 5).map((id) => `${id} (${fn.name})`)
+  );
+
+  return [
+    '# NIST AI RMF Scoring Report',
+    '',
+    `Generated: ${new Date().toLocaleString()}`,
+    '',
+    '## Executive Summary',
+    '',
+    `Overall, the uploaded evidence references **${result.overall.earned} of ${result.overall.max}** NIST AI RMF controls, representing **${overallPercent}% coverage**.`,
+    strongest ? `The strongest coverage area is **${strongest.name}** at **${coveragePercent(strongest.earned, strongest.max)}%**.` : '',
+    weakest ? `The largest improvement opportunity is **${weakest.name}** at **${coveragePercent(weakest.earned, weakest.max)}%**.` : '',
+    '',
+    '## Function Coverage',
+    '',
+    ...result.functions.flatMap((fn) => [
+      `### ${fn.name}`,
+      '',
+      `- Coverage: ${fn.earned}/${fn.max} (${coveragePercent(fn.earned, fn.max)}%)`,
+      `- Matched controls: ${fn.matched.length ? fn.matched.join(', ') : 'None'}`,
+      `- Missing controls: ${fn.missed.length ? fn.missed.join(', ') : 'None'}`,
+      ''
+    ]),
+    '## Priority Gaps',
+    '',
+    ...(priorityGaps.length
+      ? priorityGaps.slice(0, 12).map((gap) => `- ${gap}`)
+      : ['- No missing controls identified.']),
+    '',
+    '## Files Processed',
+    '',
+    ...result.files.map((file) =>
+      `- ${file.name}: ${file.status === 'ok' ? `${(file.chars || 0).toLocaleString()} characters extracted` : file.error || file.status}`
+    ),
+    '',
+    '## Suggested Next Steps',
+    '',
+    '- Add explicit references to missing NIST AI RMF controls where they are relevant.',
+    '- Strengthen weak areas with named owners, review cadence, thresholds, and escalation paths.',
+    '- Re-run the scorer after updating policy or evidence documents.',
+    ''
+  ].filter(Boolean).join('\n');
+};
+
+const markdownToPlainText = (markdown: string) =>
+  markdown
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^- /gm, '- ');
+
+const markdownToHtml = (markdown: string) => {
+  const lines = markdown.split('\n');
+  let html = '';
+  let inList = false;
+  const escapeHtml = (text: string) =>
+    text.replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[char] || char);
+  const inline = (text: string) => escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+  lines.forEach((line) => {
+    const heading = line.match(/^(#{1,3})\s+(.*)$/);
+    const listItem = line.match(/^- (.*)$/);
+
+    if (heading) {
+      if (inList) {
+        html += '</ul>';
+        inList = false;
+      }
+      html += `<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`;
+    } else if (listItem) {
+      if (!inList) {
+        html += '<ul>';
+        inList = true;
+      }
+      html += `<li>${inline(listItem[1])}</li>`;
+    } else if (line.trim()) {
+      if (inList) {
+        html += '</ul>';
+        inList = false;
+      }
+      html += `<p>${inline(line)}</p>`;
+    } else if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+  });
+
+  if (inList) html += '</ul>';
+  return html;
+};
+
+const downloadBlob = (content: BlobPart, filename: string, type: string) => {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadTextReport = (result: ScoreResult) => {
+  downloadBlob(markdownToPlainText(generateMarkdownReport(result)), 'nist-ai-rmf-score-report.txt', 'text/plain');
+};
+
+const downloadWordReport = (result: ScoreResult) => {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.45;color:#111827}h1,h2,h3{color:#0f172a}li{margin-bottom:4px}</style></head><body>${markdownToHtml(generateMarkdownReport(result))}</body></html>`;
+  downloadBlob(html, 'nist-ai-rmf-score-report.doc', 'application/msword');
+};
+
+const printPdfReport = (result: ScoreResult) => {
+  const html = markdownToHtml(generateMarkdownReport(result));
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+  if (!printWindow) return;
+  printWindow.document.write(`<!doctype html><html><head><title>NIST AI RMF Score Report</title><style>body{font-family:Arial,sans-serif;line-height:1.45;color:#111827;margin:32px}h1,h2,h3{color:#0f172a}li{margin-bottom:4px}@media print{button{display:none}}</style></head><body>${html}<button onclick="window.print()" style="margin-top:24px;padding:10px 14px">Print or Save as PDF</button></body></html>`);
+  printWindow.document.close();
+};
 
 export const NistScorer: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -209,25 +343,93 @@ export const NistScorer: React.FC = () => {
         </div>
 
         <div>
-          <h2 className="mb-4">NIST Score Report</h2>
-          {result && result.functions.length > 0 ? (
-            <div className="glass-panel glass-panel-glow">
-              <div className="text-center mb-6" style={{ padding: '1.5rem 0', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '2.75rem', fontWeight: 900, color: 'var(--color-emerald)', lineHeight: 1 }}>
-                  {result.overall.earned}/{result.overall.max}
+          <h2 className="mb-2">NIST Score Report</h2>
+          {!result || result.functions.length === 0 ? (
+            <div className="glass-panel text-center" style={{ padding: '2.5rem 1.5rem', borderStyle: 'dotted' }}>
+              <FileCheck2 size={42} style={{ color: 'var(--text-muted)', opacity: 0.3, marginBottom: '0.75rem' }} />
+              <h3 style={{ fontSize: '1.05rem', color: 'var(--text-secondary)' }}>No NIST Score Yet</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                Upload documents and score them to see control coverage.
+              </p>
+            </div>
+          ) : (
+            <>
+            <div className="glass-panel" style={{ borderColor: 'rgba(168, 85, 247, 0.25)', padding: '1rem' }}>
+              <div className="flex-between mb-2">
+                <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                  <FileText size={20} style={{ color: 'var(--color-purple)' }} />
+                  <h3 style={{ fontSize: '1rem' }}>Generated Report</h3>
                 </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, marginTop: '0.35rem' }}>
-                  Controls Referenced
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.45rem 0.65rem', fontSize: '0.78rem' }}
+                    onClick={() => downloadWordReport(result)}
+                  >
+                    <Download size={15} />
+                    <span>Word</span>
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.45rem 0.65rem', fontSize: '0.78rem' }}
+                    onClick={() => printPdfReport(result)}
+                  >
+                    <Download size={15} />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.45rem 0.65rem', fontSize: '0.78rem' }}
+                    onClick={() => downloadTextReport(result)}
+                  >
+                    <Download size={15} />
+                    <span>TXT</span>
+                  </button>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: '0.9rem' }}>
+              <div style={{ display: 'grid', gap: '0.45rem', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                <p style={{ margin: 0 }}>
+                  Overall coverage is{' '}
+                  <strong style={{ color: 'var(--color-emerald)' }}>
+                    {coveragePercent(result.overall.earned, result.overall.max)}%
+                  </strong>
+                  , with {result.overall.earned} of {result.overall.max} controls referenced.
+                </p>
+                <div>
+                  <h4 className="mb-1" style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>Priority Gaps</h4>
+                  <ul style={{ paddingLeft: '1.1rem', lineHeight: 1.35, margin: 0 }}>
+                    {result.functions.flatMap((fn) => fn.missed.slice(0, 2).map((id) => `${id} (${fn.name})`)).slice(0, 5).map((gap) => (
+                      <li key={gap}>{gap}</li>
+                    ))}
+                  </ul>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.76rem', margin: 0 }}>
+                  Export includes the executive summary, controls, gaps, and next steps.
+                </p>
+              </div>
+            </div>
+
+            <div className="glass-panel glass-panel-glow mt-6" style={{ padding: '1rem' }}>
+              <div className="flex-between mb-4">
+                <div>
+                  <h3 style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Score Summary</h3>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--color-emerald)', lineHeight: 1.1 }}>
+                    {result.overall.earned}/{result.overall.max}
+                  </div>
+                </div>
+                <span className="badge badge-emerald">
+                  {coveragePercent(result.overall.earned, result.overall.max)}%
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gap: '0.65rem' }}>
                 {result.functions.map((fn) => {
                   const width = fn.max ? (fn.earned / fn.max) * 100 : 0;
                   return (
-                    <details key={fn.name} className="glass-panel" style={{ padding: '1rem', borderRadius: '8px' }}>
+                    <details key={fn.name} className="glass-panel" style={{ padding: '0.75rem', borderRadius: '8px' }}>
                       <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
-                        <div className="flex-between mb-2">
+                        <div className="flex-between mb-2" style={{ fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 800 }}>{fn.name}</span>
                           <span style={{ fontWeight: 700 }}>{fn.earned}/{fn.max}</span>
                         </div>
@@ -235,13 +437,13 @@ export const NistScorer: React.FC = () => {
                           <div className="progress-bar-fill" style={{ width: `${width}%`, background: 'var(--color-emerald)' }} />
                         </div>
                       </summary>
-                      <div style={{ marginTop: '1rem' }}>
-                        <h4 className="mb-2" style={{ fontSize: '0.78rem', color: 'var(--color-emerald)' }}>Matched</h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.85rem' }}>
-                          {fn.matched.length ? fn.matched.map((id) => <span key={id} className="badge badge-emerald">{id}</span>) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>None referenced.</span>}
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <h4 className="mb-2" style={{ fontSize: '0.72rem', color: 'var(--color-emerald)' }}>Matched</h4>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                          {fn.matched.length ? fn.matched.map((id) => <span key={id} className="badge badge-emerald">{id}</span>) : <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>None referenced.</span>}
                         </div>
-                        <h4 className="mb-2" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Not Matched</h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                        <h4 className="mb-2" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Not Matched</h4>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                           {fn.missed.map((id) => <span key={id} className="badge">{id}</span>)}
                         </div>
                       </div>
@@ -250,30 +452,7 @@ export const NistScorer: React.FC = () => {
                 })}
               </div>
             </div>
-          ) : (
-            <div className="glass-panel text-center" style={{ padding: '4rem 1.5rem', borderStyle: 'dotted' }}>
-              <FileCheck2 size={48} style={{ color: 'var(--text-muted)', opacity: 0.3, marginBottom: '1rem' }} />
-              <h3 style={{ fontSize: '1.05rem', color: 'var(--text-secondary)' }}>No NIST Score Yet</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Upload documents and score them to see control coverage.
-              </p>
-            </div>
-          )}
-
-          {result?.files && result.files.length > 0 && (
-            <div className="glass-panel mt-6">
-              <h3 className="mb-3" style={{ fontSize: '1rem' }}>Files Processed</h3>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                {result.files.map((file) => (
-                  <div key={file.name} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    <strong style={{ color: file.status === 'ok' ? 'var(--color-emerald)' : 'var(--color-crimson)' }}>
-                      {file.status === 'ok' ? 'OK' : 'ISSUE'}
-                    </strong>
-                    <span> {file.name} - {file.status === 'ok' ? `${(file.chars || 0).toLocaleString()} characters extracted` : file.error}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </>
           )}
         </div>
       </div>

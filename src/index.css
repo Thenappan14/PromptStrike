@@ -1,28 +1,35 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@font-face {
+  font-family: 'Vampire Wars';
+  src: url('/fonts/Vampire%20Wars%20Italic.otf') format('opentype');
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
 
 :root {
-  --bg-primary: #08090f;
-  --bg-secondary: #0f111a;
-  --bg-tertiary: #161926;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(0, 242, 254, 0.15);
+  --bg-primary: #211010;
+  --bg-secondary: #2a1515;
+  --bg-tertiary: #351b1b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-glow: rgba(193, 18, 31, 0.32);
   
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --text-primary: #fff7f7;
+  --text-secondary: #d7c2c2;
+  --text-muted: #a98f8f;
 
-  --color-cyan: #00f2fe;
-  --color-blue: #3b82f6;
-  --color-purple: #a855f7;
-  --color-crimson: #ff0844;
+  --color-cyan: #c1121f;
+  --color-blue: #a61b26;
+  --color-purple: #7d1b23;
+  --color-crimson: #c1121f;
   --color-emerald: #00e676;
   
-  --glow-cyan: 0 0 20px rgba(0, 242, 254, 0.3);
-  --glow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
-  --glow-crimson: 0 0 20px rgba(255, 8, 68, 0.3);
+  --glow-cyan: 0 0 20px rgba(193, 18, 31, 0.35);
+  --glow-purple: 0 0 20px rgba(125, 27, 35, 0.32);
+  --glow-crimson: 0 0 20px rgba(193, 18, 31, 0.4);
   --glow-emerald: 0 0 20px rgba(0, 230, 118, 0.3);
 
-  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: Helvetica, Arial, sans-serif;
+  --font-heading: 'Vampire Wars', Helvetica, Arial, sans-serif;
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -74,7 +81,7 @@ body {
 
 /* Glassmorphism Cards */
 .glass-panel {
-  background: rgba(15, 17, 26, 0.7);
+  background: rgba(42, 21, 21, 0.78);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
@@ -89,36 +96,38 @@ body {
 }
 
 .glass-panel-glow {
-  border-color: rgba(0, 242, 254, 0.2);
-  box-shadow: 0 0 25px rgba(0, 242, 254, 0.05);
+  border-color: rgba(193, 18, 31, 0.35);
+  box-shadow: 0 0 25px rgba(193, 18, 31, 0.08);
 }
 
 .glass-panel-glow:hover {
   border-color: var(--color-cyan);
-  box-shadow: 0 0 35px rgba(0, 242, 254, 0.15);
+  box-shadow: 0 0 35px rgba(193, 18, 31, 0.2);
 }
 
 /* Typography and Headings */
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-style: italic;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   line-height: 1.2;
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, var(--color-cyan) 0%, #4facfe 100%);
+  background: linear-gradient(135deg, var(--color-cyan) 0%, #ff4d5b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-purple {
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  background: linear-gradient(135deg, #c1121f 0%, #7d1b23 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-rose {
-  background: linear-gradient(135deg, #f43f5e 0%, var(--color-crimson) 100%);
+  background: linear-gradient(135deg, #ff4d5b 0%, var(--color-crimson) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -139,8 +148,8 @@ button, .btn {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-cyan) 0%, #00a2ff 100%);
-  color: #08090f;
+  background: linear-gradient(135deg, var(--color-cyan) 0%, #8f0d17 100%);
+  color: #fff7f7;
   padding: 0.75rem 1.5rem;
   box-shadow: var(--glow-cyan);
 }
@@ -148,7 +157,7 @@ button, .btn {
 .btn-primary:hover {
   transform: translateY(-2px);
   filter: brightness(1.1);
-  box-shadow: 0 0 25px rgba(0, 242, 254, 0.5);
+  box-shadow: 0 0 25px rgba(193, 18, 31, 0.52);
 }
 
 .btn-primary:active {
